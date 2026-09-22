@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.signalclone.localization.LocalizationManager
 import com.example.signalclone.data.model.CallRecord
 import com.example.signalclone.data.repository.SignalRepository
 import com.example.signalclone.ui.components.AppMenuButton
@@ -65,6 +66,7 @@ import kotlinx.coroutines.launch
 fun CallsTab(
     onStartCall: (contactName: String, isVideo: Boolean) -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     onSignOut: () -> Unit
 ) {
     val currentUser by SignalRepository.currentUser.collectAsState()
@@ -86,11 +88,12 @@ fun CallsTab(
                 AppMenuButton(
                     user = currentUser,
                     onNavigateToProfile = onNavigateToProfile,
+                    onNavigateToSettings = onNavigateToSettings,
                     onSignOut = onSignOut
                 )
 
                 Text(
-                    text = "Calls",
+                    text = LocalizationManager.getString("calls"),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary

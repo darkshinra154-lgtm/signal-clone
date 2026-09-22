@@ -101,6 +101,34 @@ object SignalRepository {
     private val _readReceipts = MutableStateFlow(true)
     val readReceipts: StateFlow<Boolean> = _readReceipts.asStateFlow()
 
+    // WhatsApp-style Settings
+    private val _userAbout = MutableStateFlow("Hey there! I am using Adam Signal 🛡️")
+    val userAbout: StateFlow<String> = _userAbout.asStateFlow()
+
+    private val _lastSeenPrivacy = MutableStateFlow("Everyone")
+    val lastSeenPrivacy: StateFlow<String> = _lastSeenPrivacy.asStateFlow()
+
+    private val _profilePhotoPrivacy = MutableStateFlow("Everyone")
+    val profilePhotoPrivacy: StateFlow<String> = _profilePhotoPrivacy.asStateFlow()
+
+    private val _aboutPrivacy = MutableStateFlow("Everyone")
+    val aboutPrivacy: StateFlow<String> = _aboutPrivacy.asStateFlow()
+
+    private val _chatTheme = MutableStateFlow("System default")
+    val chatTheme: StateFlow<String> = _chatTheme.asStateFlow()
+
+    private val _chatWallpaper = MutableStateFlow("Default")
+    val chatWallpaper: StateFlow<String> = _chatWallpaper.asStateFlow()
+
+    private val _networkUsageSent = MutableStateFlow("1.2 GB")
+    val networkUsageSent: StateFlow<String> = _networkUsageSent.asStateFlow()
+
+    private val _networkUsageReceived = MutableStateFlow("3.8 GB")
+    val networkUsageReceived: StateFlow<String> = _networkUsageReceived.asStateFlow()
+
+    private val _storageUsed = MutableStateFlow("2.4 GB")
+    val storageUsed: StateFlow<String> = _storageUsed.asStateFlow()
+
     private val _contacts = MutableStateFlow(sampleContacts)
     val contacts: StateFlow<List<User>> = _contacts.asStateFlow()
 
@@ -196,7 +224,8 @@ object SignalRepository {
                 isSentByMe = true,
                 timestamp = System.currentTimeMillis() - 1800000,
                 status = MessageStatus.READ,
-                reactions = listOf("🔒", "⭐")
+                reactions = listOf("🔒", "⭐"),
+                isStarred = true
             )
         ),
         "channel_core_team" to listOf(
@@ -207,7 +236,8 @@ object SignalRepository {
                 senderName = "Alex Chen",
                 text = "All systems green for Adam Signal Pro Edition! 🚀",
                 isSentByMe = false,
-                timestamp = System.currentTimeMillis() - 3600000 * 3
+                timestamp = System.currentTimeMillis() - 3600000 * 3,
+                isStarred = true
             ),
             Message(
                 id = "ct2",
@@ -432,7 +462,15 @@ object SignalRepository {
         )
     }
 
-    fun sendMessage(channelId: String, text: String, imageUrl: String? = null, isAudio: Boolean = false, audioSec: Int = 0) {
+    fun sendMessage(
+        channelId: String,
+        text: String,
+        imageUrl: String? = null,
+        isAudio: Boolean = false,
+        audioSec: Int = 0,
+        replyToSender: String? = null,
+        replyToText: String? = null
+    ) {
         val current = _currentUser.value ?: adamDevUser
         val channel = _channels.value.find { it.id == channelId }
         val timer = channel?.ephemeralTimerSec ?: 0
@@ -450,7 +488,9 @@ object SignalRepository {
             isSentByMe = true,
             timestamp = System.currentTimeMillis(),
             status = MessageStatus.DELIVERED,
-            expiresInSec = timer
+            expiresInSec = timer,
+            replyToSender = replyToSender,
+            replyToText = replyToText
         )
 
         val updatedMap = _messages.value.toMutableMap()
@@ -622,5 +662,63 @@ object SignalRepository {
             viewsCount = 1
         )
         _stories.value = listOf(story) + _stories.value
+    }
+
+    fun toggleStarMessage(channelId: String, messageId: String) {
+        val currentMap = _messages.value.toMutableMap()
+        val list = (currentMap[channelId] ?: emptyList()).map { msg ->
+            if (msg.id == messageId) msg.copy(isStarred = !msg.isStarred) else msg
+        }
+        currentMap[channelId] = list
+        _messages.value = currentMap
+    }
+
+    fun deleteMessage(channelId: String, messageId: String) {
+        val currentMap = _messages.value.toMutableMap()
+        val list = (currentMap[channelId] ?: emptyList()).filterNot { it.id == messageId }
+        currentMap[channelId] = list
+        _messages.value = currentMap
+    }
+
+    fun clearChat(channelId: String) {
+        val currentMap = _messages.value.toMutableMap()
+        currentMap[channelId] = emptyList()
+        _messages.value = currentMap
+    }
+
+    fun toggleMuteChannel(channelId: String) {
+        _channels.value = _channels.value.map {
+            if (it.id == channelId) it.copy(isMuted = !it.isMuted) else it
+        }
+    }
+
+    fun setChannelWallpaper(channelId: String, wallpaper: String?) {
+        _channels.value = _channels.value.map {
+            if (it.id == channelId) it.copy(customWallpaper = wallpaper) else it
+        }
+    }
+
+    fun updateAbout(bio: String) {
+        _userAbout.value = bio
+    }
+
+    fun setChatTheme(theme: String) {
+        _chatTheme.value = theme
+    }
+
+    fun setChatWallpaper(wallpaper: String) {
+        _chatWallpaper.value = wallpaper
+    }
+
+    fun setLastSeenPrivacy(setting: String) {
+        _lastSeenPrivacy.value = setting
+    }
+
+    fun setProfilePhotoPrivacy(setting: String) {
+        _profilePhotoPrivacy.value = setting
+    }
+
+    fun setAboutPrivacy(setting: String) {
+        _aboutPrivacy.value = setting
     }
 }

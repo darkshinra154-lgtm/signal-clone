@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,25 +25,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.PinDrop
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedFilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,8 +67,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.signalclone.data.model.Channel
 import com.example.signalclone.data.repository.SignalRepository
+import com.example.signalclone.localization.AppLanguage
+import com.example.signalclone.localization.LocalizationManager
 import com.example.signalclone.ui.components.AppMenuButton
 import com.example.signalclone.ui.components.AvatarView
+import com.example.signalclone.ui.components.WhatsAppOverflowMenu
 import com.example.signalclone.ui.theme.BorderLight
 import com.example.signalclone.ui.theme.SignalBlue
 import com.example.signalclone.ui.theme.SignalBlueLight
@@ -75,33 +81,38 @@ import com.example.signalclone.ui.theme.TextSecondary
 import com.example.signalclone.ui.theme.TextTertiary
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsTab(
     onSelectChannel: (String) -> Unit,
     onNavigateToNewMessage: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     onSignOut: () -> Unit
 ) {
     val currentUser by SignalRepository.currentUser.collectAsState()
     val channels by SignalRepository.channels.collectAsState()
+    val currentLanguage by LocalizationManager.currentLanguage.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("All") }
+    var selectedFilterKey by remember { mutableStateOf("all") }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val filteredChannels = remember(channels, searchQuery, selectedFilter) {
+    var showQuickLanguageSheet by remember { mutableStateOf(false) }
+
+    val filteredChannels = remember(channels, searchQuery, selectedFilterKey) {
         channels.filter { channel ->
             val matchesSearch = if (searchQuery.isBlank()) true else {
                 channel.name.contains(searchQuery, ignoreCase = true) ||
                 channel.lastMessage.contains(searchQuery, ignoreCase = true)
             }
-            val matchesFilter = when (selectedFilter) {
-                "Unread" -> channel.unreadCount > 0
-                "Direct" -> !channel.isGroup && !channel.isSelfNote
-                "Groups" -> channel.isGroup
-                "Pinned" -> channel.isPinned
+            val matchesFilter = when (selectedFilterKey) {
+                "unread" -> channel.unreadCount > 0
+                "direct" -> !channel.isGroup && !channel.isSelfNote
+                "groups" -> channel.isGroup
+                "pinned" -> channel.isPinned
                 else -> true
             }
             matchesSearch && matchesFilter
@@ -116,24 +127,25 @@ fun ChatsTab(
                     .fillMaxWidth()
                     .background(Color.White)
             ) {
-                // Top Header Row
+                // Top Header Row (WhatsApp Style)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppMenuButton(
                         user = currentUser,
                         onNavigateToProfile = onNavigateToProfile,
+                        onNavigateToSettings = onNavigateToSettings,
                         onSignOut = onSignOut,
                         modifier = Modifier.testTag("app_menu_button")
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Adam Signal",
+                            text = LocalizationManager.getString("app_name"),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -174,6 +186,15 @@ fun ChatsTab(
                                 modifier = Modifier.size(22.dp)
                             )
                         }
+
+                        // WhatsApp 3-dots Overflow Menu
+                        WhatsAppOverflowMenu(
+                            onNavigateToNewGroup = onNavigateToNewMessage,
+                            onNavigateToSettings = onNavigateToSettings,
+                            onOpenStarredMessages = onNavigateToSettings,
+                            onOpenLanguagePicker = { showQuickLanguageSheet = true },
+                            onSignOut = onSignOut
+                        )
                     }
                 }
 
@@ -191,7 +212,7 @@ fun ChatsTab(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search chats or messages...", fontSize = 14.sp) },
+                            placeholder = { Text(LocalizationManager.getString("search_hint"), fontSize = 14.sp) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Search,
@@ -213,7 +234,7 @@ fun ChatsTab(
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(24.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = SignalBlue,
                                 unfocusedBorderColor = BorderLight,
@@ -228,22 +249,22 @@ fun ChatsTab(
                     }
                 }
 
-                // Filter Categories Chips
+                // Filter Categories Chips (WhatsApp Filter Row)
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val filters = listOf("All", "Pinned", "Unread", "Direct", "Groups")
-                    items(filters) { filter ->
-                        val isSelected = selectedFilter == filter
+                    val filterKeys = listOf("all", "pinned", "unread", "direct", "groups")
+                    items(filterKeys) { key ->
+                        val isSelected = selectedFilterKey == key
                         ElevatedFilterChip(
                             selected = isSelected,
-                            onClick = { selectedFilter = filter },
+                            onClick = { selectedFilterKey = key },
                             label = {
                                 Text(
-                                    text = filter,
+                                    text = LocalizationManager.getString(key),
                                     fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -291,14 +312,14 @@ fun ChatsTab(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "No conversations found",
+                        text = LocalizationManager.getString("no_conversations"),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (searchQuery.isNotBlank()) "Try a different search term" else "Tap compose to start an encrypted chat",
+                        text = if (searchQuery.isNotBlank()) LocalizationManager.getString("search_hint") else LocalizationManager.getString("start_encrypted_chat"),
                         fontSize = 14.sp,
                         color = TextSecondary
                     )
@@ -326,6 +347,64 @@ fun ChatsTab(
                         modifier = Modifier.padding(start = 76.dp),
                         color = BorderLight.copy(alpha = 0.4f)
                     )
+                }
+            }
+        }
+
+        // Quick Language Bottom Sheet from Overflow
+        if (showQuickLanguageSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showQuickLanguageSheet = false },
+                sheetState = rememberModalBottomSheetState(),
+                containerColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    Text(
+                        text = LocalizationManager.getString("app_language"),
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    AppLanguage.values().forEach { lang ->
+                        val isSelected = currentLanguage == lang
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    LocalizationManager.setLanguage(lang)
+                                    showQuickLanguageSheet = false
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) SignalBlue.copy(alpha = 0.08f) else Color(0xFFF9FAFB)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = lang.flagEmoji, fontSize = 22.sp)
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    text = "${lang.nativeName} (${lang.englishName})",
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) SignalBlue else TextPrimary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -404,7 +483,7 @@ fun ChannelListItem(
             ) {
                 if (channel.isTyping) {
                     Text(
-                        text = "${channel.typingUser ?: "Contact"} is typing... 💬",
+                        text = "${channel.typingUser ?: "Contact"} ${LocalizationManager.getString("typing_indicator")}",
                         fontSize = 14.sp,
                         color = SignalBlue,
                         fontWeight = FontWeight.SemiBold,
@@ -412,46 +491,30 @@ fun ChannelListItem(
                     )
                 } else {
                     Text(
-                        text = channel.lastMessage.ifEmpty { "Start an encrypted conversation" },
+                        text = channel.lastMessage.ifEmpty { LocalizationManager.getString("start_encrypted_chat") },
                         fontSize = 14.sp,
                         color = if (channel.unreadCount > 0) TextPrimary else TextSecondary,
                         fontWeight = if (channel.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
 
                 if (channel.unreadCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(SignalBlue)
-                            .padding(horizontal = 7.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
+                    Badge(
+                        containerColor = SignalBlue,
+                        contentColor = Color.White,
+                        modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
-                            text = channel.unreadCount.toString(),
-                            color = Color.White,
+                            text = if (channel.unreadCount > 99) "99+" else channel.unreadCount.toString(),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
-        }
-
-        // Quick Pin toggle icon
-        IconButton(
-            onClick = onTogglePin,
-            modifier = Modifier.size(28.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.PushPin,
-                contentDescription = if (channel.isPinned) "Unpin" else "Pin",
-                tint = if (channel.isPinned) SignalBlue else TextTertiary.copy(alpha = 0.4f),
-                modifier = Modifier.size(16.dp)
-            )
         }
     }
 }

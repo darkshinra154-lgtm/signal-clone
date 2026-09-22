@@ -13,6 +13,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import com.example.signalclone.localization.LocalizationManager
+import com.example.signalclone.ui.screens.WhatsAppSettingsScreen
 import com.example.signalclone.data.repository.SignalRepository
 import com.example.signalclone.ui.screens.CallScreen
 import com.example.signalclone.ui.screens.ChatDetailScreen
@@ -42,12 +46,14 @@ class MainActivity : ComponentActivity() {
 fun SignalAppNavigation() {
     val navController = rememberNavController()
     val isSignedIn by SignalRepository.isSignedIn.collectAsState()
+    val currentLanguage by LocalizationManager.currentLanguage.collectAsState()
     val startDestination = if (isSignedIn) "main" else "welcome"
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination
-    ) {
+    CompositionLocalProvider(LocalLayoutDirection provides currentLanguage.layoutDirection) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination
+        ) {
         composable("welcome") {
             WelcomeScreen(
                 onContinue = { navController.navigate("signup") },
@@ -91,6 +97,9 @@ fun SignalAppNavigation() {
                 },
                 onNavigateToProfile = {
                     navController.navigate("profile")
+                },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
                 },
                 onSignOut = {
                     navController.navigate("welcome") {
@@ -176,5 +185,21 @@ fun SignalAppNavigation() {
                 }
             )
         }
+
+        composable("settings") {
+            WhatsAppSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditProfile = { navController.navigate("profile") },
+                onSelectChannel = { channelId ->
+                    navController.navigate("chat/$channelId")
+                },
+                onSignOut = {
+                    navController.navigate("welcome") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
     }
+}
 }

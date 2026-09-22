@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.signalclone.localization.LocalizationManager
 import com.example.signalclone.data.model.Story
 import com.example.signalclone.data.repository.SignalRepository
 import com.example.signalclone.ui.components.AppMenuButton
@@ -65,6 +66,7 @@ import com.example.signalclone.ui.theme.TextSecondary
 @Composable
 fun StoriesTab(
     onNavigateToProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     onSignOut: () -> Unit
 ) {
     val currentUser by SignalRepository.currentUser.collectAsState()
@@ -86,11 +88,12 @@ fun StoriesTab(
                 AppMenuButton(
                     user = currentUser,
                     onNavigateToProfile = onNavigateToProfile,
+                    onNavigateToSettings = onNavigateToSettings,
                     onSignOut = onSignOut
                 )
 
                 Text(
-                    text = "Stories",
+                    text = LocalizationManager.getString("stories"),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary

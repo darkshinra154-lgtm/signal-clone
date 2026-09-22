@@ -33,7 +33,10 @@ data class Message(
     val isSentByMe: Boolean = false,
     val status: MessageStatus = MessageStatus.DELIVERED,
     val reactions: List<String> = emptyList(),
-    val expiresInSec: Int = 0
+    val expiresInSec: Int = 0,
+    val isStarred: Boolean = false,
+    val replyToSender: String? = null,
+    val replyToText: String? = null
 )
 
 enum class MessageStatus {
@@ -58,7 +61,9 @@ data class Channel(
     val isSelfNote: Boolean = false,
     val ephemeralTimerSec: Int = 0,
     val isTyping: Boolean = false,
-    val typingUser: String? = null
+    val typingUser: String? = null,
+    val customWallpaper: String? = null,
+    val isMuted: Boolean = false
 )
 
 data class CallRecord(

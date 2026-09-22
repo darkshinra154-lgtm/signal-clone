@@ -25,12 +25,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
@@ -39,10 +41,13 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,13 +95,12 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.signalclone.data.model.Message
 import com.example.signalclone.data.repository.SignalRepository
+import com.example.signalclone.localization.LocalizationManager
 import com.example.signalclone.ui.components.AvatarView
-import com.example.signalclone.ui.theme.BorderLight
 import com.example.signalclone.ui.theme.BubbleReceiver
 import com.example.signalclone.ui.theme.BubbleSender
 import com.example.signalclone.ui.theme.OnlineGreen
 import com.example.signalclone.ui.theme.SignalBlue
-import com.example.signalclone.ui.theme.SignalBlueLight
 import com.example.signalclone.ui.theme.SurfaceLight
 import com.example.signalclone.ui.theme.TextPrimary
 import com.example.signalclone.ui.theme.TextSecondary
@@ -115,17 +119,22 @@ fun ChatDetailScreen(
 ) {
     val channels by SignalRepository.channels.collectAsState()
     val allMessages by SignalRepository.messages.collectAsState()
-    val channel = channels.find { it.id == channelId } ?: channels.firstOrNull()
+    val globalWallpaper by SignalRepository.chatWallpaper.collectAsState()
+    val currentLanguage by LocalizationManager.currentLanguage.collectAsState()
 
+    val channel = channels.find { it.id == channelId } ?: channels.firstOrNull()
     val messages = allMessages[channelId] ?: emptyList()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var inputText by remember { mutableStateOf("") }
+    var replyingToMessage by remember { mutableStateOf<Message?>(null) }
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var showSafetyNumberDialog by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showWallpaperDialog by remember { mutableStateOf(false) }
+    var showClearChatDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var reactionMessageTarget by remember { mutableStateOf<Message?>(null) }
     var activeViewerImage by remember { mutableStateOf<String?>(null) }
@@ -134,6 +143,17 @@ fun ChatDetailScreen(
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
+    }
+
+    // Determine wallpaper background color based on WhatsApp themes
+    val activeWallpaper = channel?.customWallpaper ?: globalWallpaper
+    val chatBackgroundColor = when (activeWallpaper) {
+        "Teal" -> Color(0xFFE0F2F1)
+        "Navy" -> Color(0xFF1B242C)
+        "Amber" -> Color(0xFFFFF8E7)
+        "Sky" -> Color(0xFFE1F5FE)
+        "Classic" -> Color(0xFFEFEAE2) // Classic WhatsApp beige/taupe
+        else -> Color(0xFFEFEAE2)
     }
 
     Scaffold(
@@ -168,6 +188,15 @@ fun ChatDetailScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                if (channel?.isMuted == true) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.VolumeOff,
+                                        contentDescription = "Muted",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -178,9 +207,9 @@ fun ChatDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
-                                    text = if (channel?.isTyping == true) "typing... 💬"
-                                    else if (channel?.ephemeralTimerSec != null && channel.ephemeralTimerSec > 0) "Disappearing (${channel.ephemeralTimerSec}s)"
-                                    else "Adam Dev • Encrypted",
+                                    text = if (channel?.isTyping == true) LocalizationManager.getString("typing_indicator")
+                                    else if (channel?.ephemeralTimerSec != null && channel.ephemeralTimerSec > 0) "${LocalizationManager.getString("disappearing_messages")} (${channel.ephemeralTimerSec}s)"
+                                    else "Adam Dev • ${LocalizationManager.getString("safety_number")}",
                                     fontSize = 11.sp,
                                     color = if (channel?.isTyping == true) SignalBlue else TextSecondary,
                                     fontWeight = if (channel?.isTyping == true) FontWeight.Bold else FontWeight.Normal
@@ -238,18 +267,44 @@ fun ChatDetailScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            // Mute / Unmute
                             DropdownMenuItem(
-                                text = { Text("Safety Number") },
+                                text = {
+                                    Text(if (channel?.isMuted == true) LocalizationManager.getString("unmute") else LocalizationManager.getString("mute"))
+                                },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Security, contentDescription = null, tint = SignalBlue)
+                                    Icon(
+                                        if (channel?.isMuted == true) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                        contentDescription = null,
+                                        tint = SignalBlue
+                                    )
                                 },
                                 onClick = {
                                     showMenu = false
-                                    showSafetyNumberDialog = true
+                                    SignalRepository.toggleMuteChannel(channelId)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (channel?.isMuted == true) "Notifications unmuted" else "Notifications muted 🔕"
+                                        )
+                                    }
                                 }
                             )
+
+                            // Wallpaper
                             DropdownMenuItem(
-                                text = { Text("Disappearing Messages") },
+                                text = { Text(LocalizationManager.getString("wallpaper")) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Wallpaper, contentDescription = null, tint = SignalBlue)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showWallpaperDialog = true
+                                }
+                            )
+
+                            // Disappearing Messages
+                            DropdownMenuItem(
+                                text = { Text(LocalizationManager.getString("disappearing_messages")) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Timer, contentDescription = null, tint = SignalBlue)
                                 },
@@ -258,13 +313,39 @@ fun ChatDetailScreen(
                                     showTimerDialog = true
                                 }
                             )
+
+                            // Safety Number
+                            DropdownMenuItem(
+                                text = { Text(LocalizationManager.getString("safety_number")) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Security, contentDescription = null, tint = SignalBlue)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showSafetyNumberDialog = true
+                                }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                            // Clear Chat
+                            DropdownMenuItem(
+                                text = { Text(LocalizationManager.getString("clear_chat"), color = Color(0xFFDC2626)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color(0xFFDC2626))
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showClearChatDialog = true
+                                }
+                            )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = Color.White
+        containerColor = chatBackgroundColor
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -279,7 +360,7 @@ fun ChatDetailScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceLight)
+                    .background(Color.White.copy(alpha = 0.85f))
                     .clickable { showSafetyNumberDialog = true }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
@@ -293,7 +374,7 @@ fun ChatDetailScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Encrypted by Adam Dev Protocol. Tap to verify.",
+                        text = "Encrypted by Adam Dev Protocol • ${LocalizationManager.getString("safety_number")}",
                         fontSize = 12.sp,
                         color = TextSecondary,
                         fontWeight = FontWeight.Medium
@@ -330,7 +411,7 @@ fun ChatDetailScreen(
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "${channel.name} is typing",
+                                text = "${channel.name} ${LocalizationManager.getString("typing_indicator")}",
                                 fontSize = 13.sp,
                                 color = TextSecondary,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
@@ -342,36 +423,184 @@ fun ChatDetailScreen(
                 }
             }
 
-            // Quick emoji reaction bar
+            // Quick Message Context & Emoji Reaction Bar (WhatsApp Style)
             if (reactionMessageTarget != null) {
+                val target = reactionMessageTarget!!
                 Surface(
                     color = Color.White,
-                    shadowElevation = 6.dp,
+                    shadowElevation = 8.dp,
                     shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(10.dp)
                     ) {
-                        listOf("❤️", "👍", "🔥", "😂", "😮", "🔒", "⭐").forEach { emoji ->
-                            Text(
-                                text = emoji,
-                                fontSize = 24.sp,
-                                modifier = Modifier
-                                    .clickable {
-                                        SignalRepository.addReaction(
-                                            channelId = channelId,
-                                            messageId = reactionMessageTarget!!.id,
-                                            emoji = emoji
+                        // Quick Emoji reactions
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("❤️", "👍", "😂", "😮", "😢", "🙏", "🔥").forEach { emoji ->
+                                Text(
+                                    text = emoji,
+                                    fontSize = 24.sp,
+                                    modifier = Modifier
+                                        .clickable {
+                                            SignalRepository.addReaction(
+                                                channelId = channelId,
+                                                messageId = target.id,
+                                                emoji = emoji
+                                            )
+                                            reactionMessageTarget = null
+                                        }
+                                        .padding(4.dp)
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // WhatsApp Action Buttons (Star, Reply, Delete)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Star / Unstar
+                            TextButton(
+                                onClick = {
+                                    SignalRepository.toggleStarMessage(channelId, target.id)
+                                    val isStarredNow = !target.isStarred
+                                    reactionMessageTarget = null
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (isStarredNow) "Message starred ⭐" else "Message unstarred"
                                         )
-                                        reactionMessageTarget = null
                                     }
-                                    .padding(4.dp)
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = if (target.isStarred) Color(0xFFF59E0B) else TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (target.isStarred) LocalizationManager.getString("unstar") else LocalizationManager.getString("star"),
+                                    color = TextPrimary,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // Reply
+                            TextButton(
+                                onClick = {
+                                    replyingToMessage = target
+                                    reactionMessageTarget = null
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                                    contentDescription = null,
+                                    tint = SignalBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = LocalizationManager.getString("reply"),
+                                    color = TextPrimary,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // Delete
+                            TextButton(
+                                onClick = {
+                                    SignalRepository.deleteMessage(channelId, target.id)
+                                    reactionMessageTarget = null
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(LocalizationManager.getString("message_deleted"))
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = LocalizationManager.getString("delete"),
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // Close / Cancel
+                            IconButton(onClick = { reactionMessageTarget = null }) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quoted Reply Preview Bar (WhatsApp Style)
+            AnimatedVisibility(visible = replyingToMessage != null) {
+                if (replyingToMessage != null) {
+                    val replyTarget = replyingToMessage!!
+                    Surface(
+                        color = Color(0xFFF3F4F6),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(SignalBlue)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = replyTarget.senderName.ifBlank { "Contact" },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = SignalBlue
+                                )
+                                Text(
+                                    text = replyTarget.text.ifBlank { "[Media]" },
+                                    fontSize = 13.sp,
+                                    color = TextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            IconButton(
+                                onClick = { replyingToMessage = null },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel reply",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -400,7 +629,7 @@ fun ChatDetailScreen(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Adam Signal message...", color = TextSecondary, fontSize = 15.sp) },
+                    placeholder = { Text(LocalizationManager.getString("type_message"), color = TextSecondary, fontSize = 15.sp) },
                     shape = RoundedCornerShape(22.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
@@ -420,8 +649,14 @@ fun ChatDetailScreen(
                         onClick = {
                             val text = inputText.trim()
                             if (text.isNotEmpty()) {
-                                SignalRepository.sendMessage(channelId, text)
+                                SignalRepository.sendMessage(
+                                    channelId = channelId,
+                                    text = text,
+                                    replyToSender = replyingToMessage?.senderName,
+                                    replyToText = replyingToMessage?.text
+                                )
                                 inputText = ""
+                                replyingToMessage = null
                             }
                         },
                         modifier = Modifier
@@ -443,8 +678,11 @@ fun ChatDetailScreen(
                             SignalRepository.sendMessage(
                                 channelId = channelId,
                                 text = "Encrypted photo",
-                                imageUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?w=500"
+                                imageUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?w=500",
+                                replyToSender = replyingToMessage?.senderName,
+                                replyToText = replyingToMessage?.text
                             )
+                            replyingToMessage = null
                         },
                         modifier = Modifier.testTag("chat_camera_button")
                     ) {
@@ -462,8 +700,11 @@ fun ChatDetailScreen(
                                 channelId = channelId,
                                 text = "Encrypted voice note",
                                 isAudio = true,
-                                audioSec = 14
+                                audioSec = 14,
+                                replyToSender = replyingToMessage?.senderName,
+                                replyToText = replyingToMessage?.text
                             )
+                            replyingToMessage = null
                         },
                         modifier = Modifier.testTag("chat_mic_button")
                     ) {
@@ -479,6 +720,91 @@ fun ChatDetailScreen(
         }
     }
 
+    // Wallpaper Selection Dialog
+    if (showWallpaperDialog) {
+        val wallpapers = listOf(
+            "Classic" to "Classic Wallpaper (WhatsApp Beige)",
+            "Teal" to "Emerald Teal (WhatsApp Green)",
+            "Navy" to "Dark Midnight Navy",
+            "Amber" to "Warm Sunlit Amber",
+            "Sky" to "Breezy Sky Blue"
+        )
+        AlertDialog(
+            onDismissRequest = { showWallpaperDialog = false },
+            title = {
+                Text(LocalizationManager.getString("wallpaper"), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    wallpapers.forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    SignalRepository.setChannelWallpaper(channelId, key)
+                                    showWallpaperDialog = false
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Wallpaper updated to $key ✨")
+                                    }
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                fontWeight = if (activeWallpaper == key) FontWeight.Bold else FontWeight.Normal,
+                                color = if (activeWallpaper == key) SignalBlue else TextPrimary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWallpaperDialog = false }) {
+                    Text(LocalizationManager.getString("cancel"), color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    // Clear Chat Confirmation Dialog
+    if (showClearChatDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearChatDialog = false },
+            title = {
+                Text(LocalizationManager.getString("clear_chat"), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to clear all messages in this chat? Starred messages will also be cleared.",
+                    fontSize = 14.sp,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        SignalRepository.clearChat(channelId)
+                        showClearChatDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar(LocalizationManager.getString("chat_cleared"))
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Text(LocalizationManager.getString("clear_chat"), color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearChatDialog = false }) {
+                    Text(LocalizationManager.getString("cancel"), color = TextSecondary)
+                }
+            }
+        )
+    }
+
     // Safety Number Verification Dialog
     if (showSafetyNumberDialog) {
         AlertDialog(
@@ -487,7 +813,7 @@ fun ChatDetailScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Security, contentDescription = null, tint = SignalBlue)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Safety Number Verification", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(LocalizationManager.getString("safety_number"), fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             },
             text = {
@@ -544,7 +870,7 @@ fun ChatDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showSafetyNumberDialog = false }) {
-                    Text("Close", color = TextSecondary)
+                    Text(LocalizationManager.getString("cancel"), color = TextSecondary)
                 }
             }
         )
@@ -563,7 +889,7 @@ fun ChatDetailScreen(
         AlertDialog(
             onDismissRequest = { showTimerDialog = false },
             title = {
-                Text("Disappearing Messages", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(LocalizationManager.getString("disappearing_messages"), fontWeight = FontWeight.Bold, fontSize = 18.sp)
             },
             text = {
                 Column {
@@ -599,7 +925,7 @@ fun ChatDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showTimerDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text(LocalizationManager.getString("cancel"), color = TextSecondary)
                 }
             }
         )
@@ -794,7 +1120,7 @@ fun MessageBubble(
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 290.dp)
+                .widthIn(max = 295.dp)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
@@ -815,6 +1141,44 @@ fun MessageBubble(
                         color = SignalBlue,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
+                }
+
+                // WhatsApp Quoted Message Box inside Bubble
+                if (message.replyToText != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isMe) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f))
+                            .padding(start = 8.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(if (isMe) Color.White else SignalBlue)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = message.replyToSender ?: "Contact",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isMe) Color.White else SignalBlue
+                                )
+                                Text(
+                                    text = message.replyToText,
+                                    fontSize = 11.sp,
+                                    color = if (isMe) Color.White.copy(alpha = 0.85f) else TextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
                 }
 
                 if (message.imageUrl != null) {
@@ -854,7 +1218,6 @@ fun MessageBubble(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         Column {
-                            // Animated simulated waveform bars
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -894,6 +1257,15 @@ fun MessageBubble(
                     modifier = Modifier.align(Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (message.isStarred) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Starred",
+                            tint = if (isMe) Color(0xFFFBBF24) else Color(0xFFF59E0B),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                    }
                     if (message.expiresInSec > 0) {
                         Icon(
                             imageVector = Icons.Default.Timer,

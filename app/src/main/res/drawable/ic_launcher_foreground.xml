@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="21.6"
+        android:translateY="21.6">
+        <!-- Signal-style Speech bubble -->
+        <path
+            android:fillColor="#ffffff"
+            android:pathData="M54,14 C31.9,14 14,31.9 14,54 C14,62.2 16.5,69.8 20.8,76.1 L15,95 L34.7,89.5 C40.5,93 47,95 54,95 C76.1,95 94,76.1 94,54 C94,31.9 76.1,14 54,14 Z" />
+        <!-- Inner accent / lock silhouette -->
+        <path
+            android:fillColor="#175dee"
+            android:pathData="M54,34 C47.4,34 42,39.4 42,46 L42,48 C39.8,48 38,49.8 38,52 L38,68 C38,70.2 39.8,72 42,72 L66,72 C68.2,72 70,70.2 70,68 L70,52 C70,49.8 68.2,48 66,48 L66,46 C66,39.4 60.6,34 54,34 Z M54,40 C57.3,40 60,42.7 60,46 L60,48 L48,48 L48,46 C48,42.7 50.7,40 54,40 Z M54,58 C55.7,58 57,59.3 57,61 C57,62.7 55.7,64 54,64 C52.3,64 51,62.7 51,61 C51,59.3 52.3,58 54,58 Z" />
+    </group>
+</vector>

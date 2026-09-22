@@ -1,0 +1,8 @@
+{
+  "name": "Signal Clone",
+  "description": "Signal private messenger clone with encrypted messaging, voice/video calls, stories, groups, and contact search",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

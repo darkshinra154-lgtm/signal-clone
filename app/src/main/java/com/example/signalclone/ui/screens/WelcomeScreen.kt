@@ -69,8 +69,15 @@ fun WelcomeScreen(
             // Titles
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text(
+                    text = "ADAM SIGNAL",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = SignalBlue,
+                    letterSpacing = 2.sp
+                )
                 Text(
                     text = "Take privacy with you.",
                     fontSize = 28.sp,
@@ -79,16 +86,17 @@ fun WelcomeScreen(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Be yourself in every message.",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
+                    text = "Encrypted messaging by Adam Dev",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Terms & Privacy Policy",
-                    fontSize = 14.sp,
-                    color = TextSecondary,
+                    text = "End-to-End Encrypted • Quantum-Safe",
+                    fontSize = 13.sp,
+                    color = SignalBlue,
+                    fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
                 )
             }

@@ -1,0 +1,11 @@
+{
+  "name": "adam-signal",
+  "version": "2.5.0",
+  "description": "Adam Signal Messenger - Engineered by Adam Dev",
+  "main": "build-apk.js",
+  "scripts": {
+    "build:apk": "node build-apk.js"
+  },
+  "author": "Adam Dev",
+  "license": "MIT"
+}

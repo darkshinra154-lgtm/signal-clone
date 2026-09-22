@@ -47,7 +47,7 @@ fun SignInScreen(
     onSignInSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
-    var email by remember { mutableStateOf("johndoe@signal.mock") }
+    var email by remember { mutableStateOf("adam@adamdev.io") }
     var password by remember { mutableStateOf("password123") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 

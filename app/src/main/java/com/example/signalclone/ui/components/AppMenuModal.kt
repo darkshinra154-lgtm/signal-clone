@@ -2,6 +2,7 @@ package com.example.signalclone.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,8 +63,31 @@ fun AppMenuButton(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             offset = DpOffset(x = 0.dp, y = 8.dp),
-            modifier = Modifier.width(220.dp)
+            modifier = Modifier.width(230.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Column {
+                    Text(
+                        text = user?.fullName ?: "Adam Dev",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Adam Signal Pro",
+                        fontSize = 12.sp,
+                        color = com.example.signalclone.ui.theme.SignalBlue,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            HorizontalDivider(color = BorderLight)
+
             DropdownMenuItem(
                 text = {
                     Row(
@@ -70,8 +95,8 @@ fun AppMenuButton(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Profile",
-                            fontSize = 15.sp,
+                            text = "Profile & Settings",
+                            fontSize = 14.sp,
                             color = TextPrimary,
                             modifier = Modifier.weight(1f)
                         )
@@ -79,7 +104,7 @@ fun AppMenuButton(
                             imageVector = Icons.Default.Person,
                             contentDescription = "Profile",
                             tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 },
@@ -99,7 +124,7 @@ fun AppMenuButton(
                     ) {
                         Text(
                             text = "Sign Out",
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = HangupRed,
                             modifier = Modifier.weight(1f)
                         )
@@ -107,7 +132,7 @@ fun AppMenuButton(
                             imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Sign Out",
                             tint = HangupRed,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 },

@@ -1,6 +1,6 @@
 {
-  "name": "Signal Clone",
-  "description": "Signal private messenger clone with encrypted messaging, voice/video calls, stories, groups, and contact search",
+  "name": "Adam Signal",
+  "description": "Next-generation private encrypted messenger developed by Adam Dev featuring instant chats, voice & video calls, disappearing messages, stories, and privacy locks.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

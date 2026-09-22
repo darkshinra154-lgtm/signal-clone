@@ -6,13 +6,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -44,16 +49,37 @@ fun AvatarView(
     name: String,
     avatarUrl: String? = null,
     isGroup: Boolean = false,
+    isSelfNote: Boolean = false,
     size: Dp = 40.dp,
     fontSize: Int = (size.value * 0.4).toInt(),
     isOnline: Boolean = false,
+    isVerified: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        if (!avatarUrl.isNullOrBlank()) {
+        if (isSelfNote) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bookmark,
+                    contentDescription = "Note to Self",
+                    tint = Color.White,
+                    modifier = Modifier.size(size * 0.55f)
+                )
+            }
+        } else if (!avatarUrl.isNullOrBlank()) {
             AsyncImage(
                 model = avatarUrl,
                 contentDescription = name,
@@ -67,7 +93,11 @@ fun AvatarView(
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
-                    .background(Color(0xFF6366F1)),
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF8B5CF6), Color(0xFF6366F1))
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -101,7 +131,24 @@ fun AvatarView(
             }
         }
 
-        if (isOnline) {
+        if (isVerified) {
+            Box(
+                modifier = Modifier
+                    .size(size * 0.35f)
+                    .align(Alignment.BottomEnd)
+                    .clip(CircleShape)
+                    .background(SignalBlue)
+                    .border(1.5.dp, Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Verified",
+                    tint = Color.White,
+                    modifier = Modifier.size(size * 0.22f)
+                )
+            }
+        } else if (isOnline) {
             Box(
                 modifier = Modifier
                     .size(size * 0.3f)

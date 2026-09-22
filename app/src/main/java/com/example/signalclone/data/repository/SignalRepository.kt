@@ -6,15 +6,34 @@ import com.example.signalclone.data.model.Message
 import com.example.signalclone.data.model.MessageStatus
 import com.example.signalclone.data.model.Story
 import com.example.signalclone.data.model.User
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
 object SignalRepository {
+
+    private val repositoryScope = CoroutineScope(Dispatchers.Default)
+
+    val adamDevUser = User(
+        id = "user_adam_dev",
+        firstName = "Adam",
+        lastName = "Dev",
+        username = "adam_dev",
+        usernameNumber = "01",
+        email = "adam@adamdev.io",
+        avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+        isCurrentUser = true,
+        role = "Creator & Security Architect",
+        isVerified = true
+    )
 
     private val sampleContacts = listOf(
         User(
@@ -24,7 +43,8 @@ object SignalRepository {
             username = "sarahc",
             usernameNumber = "99",
             email = "sarah@cyberdyne.org",
-            avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+            avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+            isVerified = true
         ),
         User(
             id = "user_elena",
@@ -33,7 +53,8 @@ object SignalRepository {
             username = "elena",
             usernameNumber = "14",
             email = "elena@signal.mock",
-            avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"
+            avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+            isVerified = true
         ),
         User(
             id = "user_marcus",
@@ -64,73 +85,90 @@ object SignalRepository {
         )
     )
 
-    private val defaultUser = User(
-        id = "current_user",
-        firstName = "John",
-        lastName = "Doe",
-        username = "johndoe",
-        usernameNumber = "01",
-        email = "johndoe@signal.mock",
-        avatarUrl = null,
-        isCurrentUser = true
-    )
-
-    private val _currentUser = MutableStateFlow<User?>(defaultUser)
+    private val _currentUser = MutableStateFlow<User?>(adamDevUser)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     private val _isSignedIn = MutableStateFlow(true)
     val isSignedIn: StateFlow<Boolean> = _isSignedIn.asStateFlow()
+
+    // Privacy & Security settings
+    private val _appLockEnabled = MutableStateFlow(false)
+    val appLockEnabled: StateFlow<Boolean> = _appLockEnabled.asStateFlow()
+
+    private val _incognitoKeyboard = MutableStateFlow(true)
+    val incognitoKeyboard: StateFlow<Boolean> = _incognitoKeyboard.asStateFlow()
+
+    private val _readReceipts = MutableStateFlow(true)
+    val readReceipts: StateFlow<Boolean> = _readReceipts.asStateFlow()
 
     private val _contacts = MutableStateFlow(sampleContacts)
     val contacts: StateFlow<List<User>> = _contacts.asStateFlow()
 
     private val initialChannels = listOf(
         Channel(
+            id = "channel_note_to_self",
+            name = "Note to Self 📝",
+            isGroup = false,
+            memberIds = listOf("user_adam_dev"),
+            memberNames = listOf("Adam Dev"),
+            lastMessage = "Encryption keys backed up securely with Adam Dev Vault.",
+            lastMessageTime = "11:20 AM",
+            unreadCount = 0,
+            avatarUrl = null,
+            isOnline = true,
+            isPinned = true,
+            isSelfNote = true
+        ),
+        Channel(
+            id = "channel_core_team",
+            name = "⚡ Adam Dev Core Team",
+            isGroup = true,
+            memberIds = listOf("user_adam_dev", "user_sarah", "user_marcus", "user_alex"),
+            memberNames = listOf("Sarah", "Marcus", "Alex"),
+            lastMessage = "Sarah: Adam Dev v2.5 update is ready for release!",
+            lastMessageTime = "10:55 AM",
+            unreadCount = 3,
+            avatarUrl = null,
+            isOnline = true,
+            isPinned = true
+        ),
+        Channel(
             id = "channel_sarah",
             name = "Sarah Connor",
             isGroup = false,
-            memberIds = listOf("current_user", "user_sarah"),
+            memberIds = listOf("user_adam_dev", "user_sarah"),
             memberNames = listOf("Sarah Connor"),
-            lastMessage = "Let's meet tomorrow to review the encryption keys.",
+            lastMessage = "Let's review the Safety Number verification.",
             lastMessageTime = "10:42 AM",
-            unreadCount = 2,
+            unreadCount = 1,
             avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-            isOnline = true
-        ),
-        Channel(
-            id = "channel_project_privacy",
-            name = "🔐 Privacy Tech WG",
-            isGroup = true,
-            memberIds = listOf("current_user", "user_sarah", "user_marcus", "user_alex"),
-            memberNames = listOf("Sarah", "Marcus", "Alex"),
-            lastMessage = "Marcus: Zero-knowledge proofs deployed successfully!",
-            lastMessageTime = "Yesterday",
-            unreadCount = 0,
-            avatarUrl = null
+            isOnline = true,
+            isPinned = true,
+            ephemeralTimerSec = 60
         ),
         Channel(
             id = "channel_elena",
             name = "Elena Rostova",
             isGroup = false,
-            memberIds = listOf("current_user", "user_elena"),
+            memberIds = listOf("user_adam_dev", "user_elena"),
             memberNames = listOf("Elena Rostova"),
-            lastMessage = "Thanks for the secure voice call earlier 👍",
-            lastMessageTime = "Sep 20",
+            lastMessage = "The HD video call quality in Adam Signal is crystal clear!",
+            lastMessageTime = "Yesterday",
             unreadCount = 0,
             avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-            isOnline = false
+            isOnline = true
         ),
         Channel(
             id = "channel_marcus",
             name = "Marcus Vance",
             isGroup = false,
-            memberIds = listOf("current_user", "user_marcus"),
+            memberIds = listOf("user_adam_dev", "user_marcus"),
             memberNames = listOf("Marcus Vance"),
-            lastMessage = "Can you send the contract doc when you get a chance?",
-            lastMessageTime = "Sep 18",
+            lastMessage = "Quantum-resistant ratchet applied to protocol.",
+            lastMessageTime = "Sep 20",
             unreadCount = 0,
             avatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-            isOnline = true
+            isOnline = false
         )
     )
 
@@ -138,58 +176,91 @@ object SignalRepository {
     val channels: StateFlow<List<Channel>> = _channels.asStateFlow()
 
     private val initialMessages = mutableMapOf<String, List<Message>>(
-        "channel_sarah" to listOf(
+        "channel_note_to_self" to listOf(
             Message(
-                id = "m1",
-                channelId = "channel_sarah",
-                senderId = "user_sarah",
-                senderName = "Sarah Connor",
-                text = "Hey John! Did you verify the Safety Number for our chat?",
-                isSentByMe = false,
-                timestamp = System.currentTimeMillis() - 3600000 * 2,
+                id = "nts1",
+                channelId = "channel_note_to_self",
+                senderId = "user_adam_dev",
+                senderName = "Adam Dev",
+                text = "Welcome to your personal private vault! Everything written here is encrypted exclusively with your device key.",
+                isSentByMe = true,
+                timestamp = System.currentTimeMillis() - 7200000,
                 status = MessageStatus.READ
             ),
             Message(
-                id = "m2",
-                channelId = "channel_sarah",
-                senderId = "current_user",
-                senderName = "John Doe",
-                text = "Yes, scanned the QR code yesterday. Everything matches up perfectly 🔒",
+                id = "nts2",
+                channelId = "channel_note_to_self",
+                senderId = "user_adam_dev",
+                senderName = "Adam Dev",
+                text = "Encryption keys backed up securely with Adam Dev Vault.",
                 isSentByMe = true,
-                timestamp = System.currentTimeMillis() - 3600000,
+                timestamp = System.currentTimeMillis() - 1800000,
                 status = MessageStatus.READ,
-                reactions = listOf("❤️")
+                reactions = listOf("🔒", "⭐")
+            )
+        ),
+        "channel_core_team" to listOf(
+            Message(
+                id = "ct1",
+                channelId = "channel_core_team",
+                senderId = "user_alex",
+                senderName = "Alex Chen",
+                text = "All systems green for Adam Signal Pro Edition! 🚀",
+                isSentByMe = false,
+                timestamp = System.currentTimeMillis() - 3600000 * 3
             ),
             Message(
-                id = "m3",
-                channelId = "channel_sarah",
+                id = "ct2",
+                channelId = "channel_core_team",
+                senderId = "user_marcus",
+                senderName = "Marcus Vance",
+                text = "The new UI themes and waveform audio notes look absolutely phenomenal.",
+                isSentByMe = false,
+                timestamp = System.currentTimeMillis() - 3600000,
+                reactions = listOf("🔥", "👏")
+            ),
+            Message(
+                id = "ct3",
+                channelId = "channel_core_team",
                 senderId = "user_sarah",
                 senderName = "Sarah Connor",
-                text = "Awesome! Let's meet tomorrow to review the encryption keys.",
+                text = "Sarah: Adam Dev v2.5 update is ready for release!",
                 isSentByMe = false,
                 timestamp = System.currentTimeMillis() - 600000,
                 status = MessageStatus.DELIVERED
             )
         ),
-        "channel_project_privacy" to listOf(
+        "channel_sarah" to listOf(
             Message(
-                id = "p1",
-                channelId = "channel_project_privacy",
-                senderId = "user_alex",
-                senderName = "Alex Chen",
-                text = "Welcome everyone to the end-to-end encrypted project channel.",
+                id = "s1",
+                channelId = "channel_sarah",
+                senderId = "user_sarah",
+                senderName = "Sarah Connor",
+                text = "Hey Adam! Did you check out the new disappearing messages timer?",
                 isSentByMe = false,
-                timestamp = System.currentTimeMillis() - 86400000 * 2
+                timestamp = System.currentTimeMillis() - 3600000 * 2,
+                status = MessageStatus.READ
             ),
             Message(
-                id = "p2",
-                channelId = "channel_project_privacy",
-                senderId = "user_marcus",
-                senderName = "Marcus Vance",
-                text = "Zero-knowledge proofs deployed successfully!",
+                id = "s2",
+                channelId = "channel_sarah",
+                senderId = "user_adam_dev",
+                senderName = "Adam Dev",
+                text = "Yes, configured to 1 minute. It automatically wipes after reading ⏱️🔒",
+                isSentByMe = true,
+                timestamp = System.currentTimeMillis() - 3600000,
+                status = MessageStatus.READ,
+                reactions = listOf("❤️", "🔥")
+            ),
+            Message(
+                id = "s3",
+                channelId = "channel_sarah",
+                senderId = "user_sarah",
+                senderName = "Sarah Connor",
+                text = "Let's review the Safety Number verification.",
                 isSentByMe = false,
-                timestamp = System.currentTimeMillis() - 86400000,
-                reactions = listOf("🎉", "🚀")
+                timestamp = System.currentTimeMillis() - 900000,
+                status = MessageStatus.DELIVERED
             )
         ),
         "channel_elena" to listOf(
@@ -198,9 +269,10 @@ object SignalRepository {
                 channelId = "channel_elena",
                 senderId = "user_elena",
                 senderName = "Elena Rostova",
-                text = "Thanks for the secure voice call earlier 👍",
+                text = "The HD video call quality in Adam Signal is crystal clear!",
                 isSentByMe = false,
-                timestamp = System.currentTimeMillis() - 86400000 * 2
+                timestamp = System.currentTimeMillis() - 86400000,
+                reactions = listOf("🌟")
             )
         )
     )
@@ -239,7 +311,7 @@ object SignalRepository {
             isVideo = true,
             isIncoming = true,
             isMissed = true,
-            timestamp = "Sep 19, 8:20 PM",
+            timestamp = "Sep 20, 8:20 PM",
             duration = "Missed"
         )
     )
@@ -254,8 +326,9 @@ object SignalRepository {
             userName = "Sarah Connor",
             userAvatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
             mediaUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600",
-            textContent = "Securing networks in the mountains 🏔️⚡",
-            timestamp = "2h ago"
+            textContent = "Securing networks in the mountains with Adam Signal 🏔️⚡",
+            timestamp = "2h ago",
+            viewsCount = 78
         ),
         Story(
             id = "s2",
@@ -263,8 +336,9 @@ object SignalRepository {
             userName = "Marcus Vance",
             userAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
             mediaUrl = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
-            textContent = "Building modern privacy-first tools 💻🔒",
-            timestamp = "5h ago"
+            textContent = "Adam Dev v2.5 Architecture deployed! 💻🔒",
+            timestamp = "4h ago",
+            viewsCount = 120
         ),
         Story(
             id = "s3",
@@ -273,7 +347,8 @@ object SignalRepository {
             userAvatar = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
             mediaUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600",
             textContent = "Sunset by the ocean 🌅",
-            timestamp = "8h ago"
+            timestamp = "7h ago",
+            viewsCount = 54
         )
     )
 
@@ -282,15 +357,18 @@ object SignalRepository {
 
     fun signIn(email: String, pass: String): Boolean {
         if (email.isNotBlank()) {
-            val name = email.substringBefore("@").replace(".", " ").capitalize(Locale.ROOT)
+            val name = email.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
             _currentUser.value = User(
-                id = "current_user",
+                id = "user_adam_dev",
                 firstName = name,
-                lastName = "",
+                lastName = "Dev",
                 username = email.substringBefore("@"),
                 usernameNumber = "01",
                 email = email,
-                isCurrentUser = true
+                avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                isCurrentUser = true,
+                role = "Lead Developer",
+                isVerified = true
             )
             _isSignedIn.value = true
             return true
@@ -300,13 +378,16 @@ object SignalRepository {
 
     fun signUp(firstName: String, lastName: String, username: String, number: String, email: String): Boolean {
         _currentUser.value = User(
-            id = "current_user",
+            id = "user_adam_dev",
             firstName = firstName,
             lastName = lastName,
             username = username,
             usernameNumber = number.ifBlank { "01" },
             email = email,
-            isCurrentUser = true
+            avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+            isCurrentUser = true,
+            role = "Creator",
+            isVerified = true
         )
         _isSignedIn.value = true
         return true
@@ -316,8 +397,32 @@ object SignalRepository {
         _isSignedIn.value = false
     }
 
+    fun toggleAppLock(enabled: Boolean) {
+        _appLockEnabled.value = enabled
+    }
+
+    fun toggleIncognitoKeyboard(enabled: Boolean) {
+        _incognitoKeyboard.value = enabled
+    }
+
+    fun toggleReadReceipts(enabled: Boolean) {
+        _readReceipts.value = enabled
+    }
+
+    fun togglePinChannel(channelId: String) {
+        _channels.value = _channels.value.map {
+            if (it.id == channelId) it.copy(isPinned = !it.isPinned) else it
+        }.sortedWith(compareByDescending<Channel> { it.isPinned })
+    }
+
+    fun setEphemeralTimer(channelId: String, timerSec: Int) {
+        _channels.value = _channels.value.map {
+            if (it.id == channelId) it.copy(ephemeralTimerSec = timerSec) else it
+        }
+    }
+
     fun updateProfile(firstName: String, lastName: String, username: String, number: String, avatarUrl: String?) {
-        val current = _currentUser.value ?: defaultUser
+        val current = _currentUser.value ?: adamDevUser
         _currentUser.value = current.copy(
             firstName = firstName,
             lastName = lastName,
@@ -328,7 +433,10 @@ object SignalRepository {
     }
 
     fun sendMessage(channelId: String, text: String, imageUrl: String? = null, isAudio: Boolean = false, audioSec: Int = 0) {
-        val current = _currentUser.value ?: defaultUser
+        val current = _currentUser.value ?: adamDevUser
+        val channel = _channels.value.find { it.id == channelId }
+        val timer = channel?.ephemeralTimerSec ?: 0
+
         val newMsg = Message(
             id = UUID.randomUUID().toString(),
             channelId = channelId,
@@ -341,7 +449,8 @@ object SignalRepository {
             audioDurationSec = audioSec,
             isSentByMe = true,
             timestamp = System.currentTimeMillis(),
-            status = MessageStatus.DELIVERED
+            status = MessageStatus.DELIVERED,
+            expiresInSec = timer
         )
 
         val updatedMap = _messages.value.toMutableMap()
@@ -350,16 +459,71 @@ object SignalRepository {
         updatedMap[channelId] = list
         _messages.value = updatedMap
 
-        // Update channel last message
         val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
         _channels.value = _channels.value.map { ch ->
             if (ch.id == channelId) {
                 ch.copy(
-                    lastMessage = if (isAudio) "Voice message (${audioSec}s)" else (if (imageUrl != null) "📷 Photo" else text),
+                    lastMessage = if (isAudio) "Voice note (${audioSec}s)" else (if (imageUrl != null) "📷 Photo" else text),
                     lastMessageTime = timeStr,
                     unreadCount = 0
                 )
             } else ch
+        }
+
+        // Live simulation: simulate realistic contact response if chatting with Sarah or Elena
+        if (channel != null && !channel.isSelfNote && !isAudio && text.isNotBlank()) {
+            triggerRealisticContactReply(channelId, channel.name)
+        }
+    }
+
+    private fun triggerRealisticContactReply(channelId: String, contactName: String) {
+        repositoryScope.launch {
+            delay(1200)
+            // Mark channel as typing
+            _channels.value = _channels.value.map {
+                if (it.id == channelId) it.copy(isTyping = true, typingUser = contactName) else it
+            }
+
+            delay(2000)
+
+            // Realistic reply based on Adam Signal
+            val replies = listOf(
+                "Got it! Adam Signal's encryption is working seamlessly 🛡️",
+                "Sounds great! Thanks for keeping our conversations private.",
+                "Awesome update! The UI by Adam Dev is top tier 🔥",
+                "Received loud and clear! Talk soon 👍",
+                "Checked and verified the Safety Number. Everything matches! 🔒"
+            )
+            val replyText = replies.random()
+
+            val replyMsg = Message(
+                id = UUID.randomUUID().toString(),
+                channelId = channelId,
+                senderId = "contact_$channelId",
+                senderName = contactName,
+                text = replyText,
+                isSentByMe = false,
+                timestamp = System.currentTimeMillis(),
+                status = MessageStatus.DELIVERED
+            )
+
+            val updatedMap = _messages.value.toMutableMap()
+            val list = (updatedMap[channelId] ?: emptyList()).toMutableList()
+            list.add(replyMsg)
+            updatedMap[channelId] = list
+            _messages.value = updatedMap
+
+            val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+            _channels.value = _channels.value.map {
+                if (it.id == channelId) {
+                    it.copy(
+                        isTyping = false,
+                        typingUser = null,
+                        lastMessage = replyText,
+                        lastMessageTime = timeStr
+                    )
+                } else it
+            }
         }
     }
 
@@ -388,9 +552,9 @@ object SignalRepository {
             id = "channel_${contact.id}",
             name = contact.fullName,
             isGroup = false,
-            memberIds = listOf(_currentUser.value?.id ?: "current_user", contact.id),
+            memberIds = listOf(_currentUser.value?.id ?: "user_adam_dev", contact.id),
             memberNames = listOf(contact.fullName),
-            lastMessage = "Signal connection verified.",
+            lastMessage = "Adam Signal verified secure session established.",
             lastMessageTime = "Just now",
             unreadCount = 0,
             avatarUrl = contact.avatarUrl,
@@ -407,9 +571,9 @@ object SignalRepository {
             id = "channel_group_${System.currentTimeMillis()}",
             name = groupName,
             isGroup = true,
-            memberIds = listOf(_currentUser.value?.id ?: "current_user") + selectedUserIds,
+            memberIds = listOf(_currentUser.value?.id ?: "user_adam_dev") + selectedUserIds,
             memberNames = memberNames,
-            lastMessage = "Group created",
+            lastMessage = "Group created with Adam Dev Encryption Protocol",
             lastMessageTime = "Just now",
             unreadCount = 0,
             avatarUrl = null
@@ -445,7 +609,7 @@ object SignalRepository {
     }
 
     fun addStory(text: String, mediaUrl: String?) {
-        val current = _currentUser.value ?: defaultUser
+        val current = _currentUser.value ?: adamDevUser
         val story = Story(
             id = UUID.randomUUID().toString(),
             userId = current.id,
@@ -454,7 +618,8 @@ object SignalRepository {
             mediaUrl = mediaUrl,
             textContent = text,
             timestamp = "Just now",
-            isViewed = false
+            isViewed = false,
+            viewsCount = 1
         )
         _stories.value = listOf(story) + _stories.value
     }

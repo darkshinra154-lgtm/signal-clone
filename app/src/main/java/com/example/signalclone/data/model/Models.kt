@@ -8,7 +8,9 @@ data class User(
     val usernameNumber: String = "01",
     val avatarUrl: String? = null,
     val email: String = "",
-    val isCurrentUser: Boolean = false
+    val isCurrentUser: Boolean = false,
+    val role: String = "Member",
+    val isVerified: Boolean = false
 ) {
     val fullName: String
         get() = "$firstName $lastName".trim()
@@ -30,7 +32,8 @@ data class Message(
     val timestamp: Long = System.currentTimeMillis(),
     val isSentByMe: Boolean = false,
     val status: MessageStatus = MessageStatus.DELIVERED,
-    val reactions: List<String> = emptyList()
+    val reactions: List<String> = emptyList(),
+    val expiresInSec: Int = 0
 )
 
 enum class MessageStatus {
@@ -50,7 +53,12 @@ data class Channel(
     val lastMessageTime: String = "",
     val unreadCount: Int = 0,
     val avatarUrl: String? = null,
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val isPinned: Boolean = false,
+    val isSelfNote: Boolean = false,
+    val ephemeralTimerSec: Int = 0,
+    val isTyping: Boolean = false,
+    val typingUser: String? = null
 )
 
 data class CallRecord(
@@ -73,5 +81,6 @@ data class Story(
     val mediaUrl: String? = null,
     val textContent: String = "",
     val timestamp: String = "2h ago",
-    val isViewed: Boolean = false
+    val isViewed: Boolean = false,
+    val viewsCount: Int = 42
 )
